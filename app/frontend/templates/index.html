@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RCNN vs YOLO - Detección de Objetos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="bi bi-robot"></i> RCNN vs YOLO
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#inicio">Inicio</a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navImages" role="button" data-bs-toggle="dropdown">
+                            Imágenes
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navImages">
+                            <li><a class="dropdown-item" href="#rcnn-image">RCNN</a></li>
+                            <li><a class="dropdown-item" href="#yolo-image">YOLO</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navVideos" role="button" data-bs-toggle="dropdown">
+                            Videos
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="navVideos">
+                            <li><a class="dropdown-item" href="#rcnn-video">RCNN</a></li>
+                            <li><a class="dropdown-item" href="#yolo-video">YOLO</a></li>
+                        </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#comparacion">Comparación</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#historial">Historial</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid">
+        <!-- Hero Section -->
+        <section id="inicio" class="hero-section py-5 bg-gradient">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-lg-8">
+                        <h1 class="display-4 fw-bold mb-3">Detección de Objetos: RCNN vs YOLO</h1>
+                        <p class="lead mb-4">
+                            Compara el rendimiento de dos de los modelos más avanzados de detección de objetos.
+                            Analiza velocidad, precisión y consume de recursos en tiempo real.
+                        </p>
+                        <div class="btn-group" role="group">
+                            <a href="#rcnn-image" class="btn btn-primary btn-lg">
+                                <i class="bi bi-lightning-fill"></i> Iniciar RCNN
+                            </a>
+                            <a href="#yolo-image" class="btn btn-warning btn-lg">
+                                <i class="bi bi-fire"></i> Iniciar YOLO
+                            </a>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="stats-card">
+                            <div class="stat-item">
+                                <div class="stat-number" id="stat-detections">0</div>
+                                <div class="stat-label">Detecciones Totales</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-number" id="stat-comparisons">0</div>
+                                <div class="stat-label">Comparaciones</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- RCNN Image Section -->
+        <section id="rcnn-image" class="module-section py-5 border-bottom">
+            <div class="container">
+                <h2 class="mb-4">
+                    <i class="bi bi-arrow-repeat"></i> Detección RCNN - Imágenes
+                </h2>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card upload-card">
+                            <div class="card-body">
+                                <div class="upload-area" id="rcnn-image-upload">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                    <h5>Cargar Imagen</h5>
+                                    <p class="text-muted">Arrastra una imagen aquí o haz clic para seleccionar</p>
+                                    <input type="file" id="rcnn-image-input" accept="image/*" style="display: none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div id="rcnn-image-preview" class="image-preview" style="display: none;">
+                            <img id="rcnn-image-preview-img" src="" alt="Preview" class="img-fluid">
+                        </div>
+                        <div id="rcnn-image-loading" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Procesando...</span>
+                            </div>
+                            <p class="mt-2">Procesando imagen con RCNN...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="rcnn-image-results" style="display: none;" class="mt-4">
+                    <h4>Resultados RCNN</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="result-card">
+                                <h6>Métricas</h6>
+                                <ul id="rcnn-image-metrics" class="metrics-list"></ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="result-card">
+                                <h6>Detecciones</h6>
+                                <div id="rcnn-image-detections" class="detections-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <img id="rcnn-image-result" src="" alt="Result" class="img-fluid result-image">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- YOLO Image Section -->
+        <section id="yolo-image" class="module-section py-5 border-bottom">
+            <div class="container">
+                <h2 class="mb-4">
+                    <i class="bi bi-lightning"></i> Detección YOLO - Imágenes
+                </h2>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card upload-card">
+                            <div class="card-body">
+                                <div class="upload-area" id="yolo-image-upload">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                    <h5>Cargar Imagen</h5>
+                                    <p class="text-muted">Arrastra una imagen aquí o haz clic para seleccionar</p>
+                                    <input type="file" id="yolo-image-input" accept="image/*" style="display: none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div id="yolo-image-preview" class="image-preview" style="display: none;">
+                            <img id="yolo-image-preview-img" src="" alt="Preview" class="img-fluid">
+                        </div>
+                        <div id="yolo-image-loading" style="display: none;">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Procesando...</span>
+                            </div>
+                            <p class="mt-2">Procesando imagen con YOLO...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="yolo-image-results" style="display: none;" class="mt-4">
+                    <h4>Resultados YOLO</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="result-card">
+                                <h6>Métricas</h6>
+                                <ul id="yolo-image-metrics" class="metrics-list"></ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="result-card">
+                                <h6>Detecciones</h6>
+                                <div id="yolo-image-detections" class="detections-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <img id="yolo-image-result" src="" alt="Result" class="img-fluid result-image">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Comparison Section -->
+        <section id="comparacion" class="module-section py-5 bg-light border-bottom">
+            <div class="container">
+                <h2 class="mb-4">
+                    <i class="bi bi-shuffle"></i> Comparación de Modelos
+                </h2>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">RCNN (Faster R-CNN)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="rcnn-comparison-stats"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header bg-warning">
+                                <h5 class="mb-0">YOLO (YOLOv8)</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="yolo-comparison-stats"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts -->
+                <div class="row mt-5">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Tiempo de Inferencia (ms)</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="inferenceTimeChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">Uso de Memoria (MB)</h6>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="memoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- History Section -->
+        <section id="historial" class="module-section py-5 border-bottom">
+            <div class="container">
+                <h2 class="mb-4">
+                    <i class="bi bi-clock-history"></i> Historial de Detecciones
+                </h2>
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <select id="history-filter-model" class="form-select">
+                            <option value="">Todos los modelos</option>
+                            <option value="rcnn">RCNN</option>
+                            <option value="yolo">YOLO</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <select id="history-filter-type" class="form-select">
+                            <option value="">Todos los tipos</option>
+                            <option value="image">Imágenes</option>
+                            <option value="video">Videos</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <button class="btn btn-primary w-100" onclick="loadHistory()">
+                            <i class="bi bi-arrow-clockwise"></i> Actualizar
+                        </button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Archivo</th>
+                                <th>Modelo</th>
+                                <th>Tipo</th>
+                                <th>Detecciones</th>
+                                <th>Tiempo (ms)</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">Cargando...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Analysis Section -->
+        <section class="module-section py-5">
+            <div class="container">
+                <h2 class="mb-4">
+                    <i class="bi bi-graph-up"></i> Análisis y Conclusiones
+                </h2>
+                <div class="row">
+                    <div class="col-lg-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <div id="analysis-content">
+                                    <p class="text-muted">Los análisis se mostrarán después de completar comparaciones...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h6>Sobre</h6>
+                    <p class="small">
+                        Plataforma de comparación de modelos de detección de objetos.
+                        RCNN vs YOLO
+                    </p>
+                </div>
+                <div class="col-md-4">
+                    <h6>Características</h6>
+                    <ul class="small">
+                        <li>Detección en imágenes</li>
+                        <li>Detección en videos</li>
+                        <li>Análisis comparativo</li>
+                        <li>Métricas en tiempo real</li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h6>Tecnologías</h6>
+                    <ul class="small">
+                        <li>FastAPI</li>
+                        <li>PyTorch</li>
+                        <li>Ultralytics YOLO</li>
+                        <li>Bootstrap 5</li>
+                    </ul>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center small">
+                <p>&copy; 2024 RCNN vs YOLO Detection Platform. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
