@@ -73,6 +73,14 @@ class YOLODetector:
         
         return annotated_image, detections, inference_time
     
+    def detect_frame(self, frame: np.ndarray) -> Tuple[List[Dict], float]:
+        """Run detection on a single numpy BGR frame (from webcam)."""
+        start_time = time.time()
+        results = self.model.predict(frame, conf=self.confidence_threshold, verbose=False)
+        inference_time = time.time() - start_time
+        detections = self._extract_detections(results[0])
+        return detections, inference_time
+
     def detect_video(self, video_path: str, callback=None) -> Tuple[str, List[Dict], float, float]:
         """
         Detect objects in video frames

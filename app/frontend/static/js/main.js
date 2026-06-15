@@ -12,8 +12,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeUploadAreas();
     loadStatistics();
     loadHistory();
-    
-    // Auto-refresh statistics every 30 seconds
     setInterval(loadStatistics, 30000);
 });
 
@@ -430,6 +428,223 @@ async function loadStatistics() {
     } catch (error) {
         console.error('Statistics load error:', error);
     }
+}
+
+// ==================== CAMERA / WEBSOCKET ====================
+
+let cameraStream = null;
+let cameraWS = null;
+let cameraActive = false;
+let cameraAnimId = null;
+let waitingWSResponse = false;
+let latestDetections = [];
+let latestModel = null;
+let camFrameCount = 0;
+let camFpsTimer = Date.now();
+let compareStats = { rcnn: { totalTime: 0, count: 0, totalObjects: 0 }, yolo: { totalTime: 0, count: 0, totalObjects: 0 } };
+
+const captureCanvas = document.createElement('canvas');
+captureCanvas.width = 640;
+captureCanvas.height = 480;
+const captureCtx = captureCanvas.getContext('2d');
+
+function startCamera() {
+    const model = document.getElementById('camera-model-select').value;
+    const videoEl = document.getElementById('camera-video');
+    const displayCanvas = document.getElementById('camera-canvas');
+    const displayCtx = displayCanvas.getContext('2d');
+    const placeholder = document.getElementById('camera-placeholder');
+    const errorEl = document.getElementById('camera-error');
+    const startBtn = document.getElementById('camera-start-btn');
+
+    errorEl.style.display = 'none';
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showCameraError('Tu navegador no soporta acceso a cámara. Usa Chrome o Firefox en localhost.');
+        return;
+    }
+
+    // Feedback inmediato en el botón
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Conectando...';
+
+    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
+        .then(stream => {
+            cameraStream = stream;
+            videoEl.srcObject = stream;
+            videoEl.play();
+
+            const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsPath = model === 'compare' ? '/api/v1/ws/camera/compare' : `/api/v1/ws/camera/${model}`;
+            cameraWS = new WebSocket(`${wsProtocol}://${location.host}${wsPath}`);
+            cameraWS.binaryType = 'arraybuffer';
+
+            cameraWS.onopen = () => {
+                cameraActive = true;
+                waitingWSResponse = false;
+                latestDetections = [];
+                latestModel = null;
+                compareStats = { rcnn: { totalTime: 0, count: 0, totalObjects: 0 }, yolo: { totalTime: 0, count: 0, totalObjects: 0 } };
+                placeholder.style.display = 'none';
+                document.getElementById('camera-stats').style.display = 'block';
+                if (model === 'compare') {
+                    document.getElementById('single-model-stats').style.display = 'none';
+                    document.getElementById('compare-model-stats').style.display = 'block';
+                } else {
+                    document.getElementById('single-model-stats').style.display = 'block';
+                    document.getElementById('compare-model-stats').style.display = 'none';
+                }
+                startBtn.innerHTML = '<i class="bi bi-play-fill"></i> Iniciar Cámara';
+                document.getElementById('camera-stop-btn').disabled = false;
+                document.getElementById('camera-model-select').disabled = true;
+                camFpsTimer = Date.now();
+                camFrameCount = 0;
+                cameraLoop(videoEl, displayCanvas, displayCtx);
+            };
+
+            cameraWS.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                latestDetections = data.detections || [];
+                waitingWSResponse = false;
+                if (data.model) {
+                    latestModel = data.model;
+                    compareStats[data.model].totalTime += data.inference_time;
+                    compareStats[data.model].count++;
+                    compareStats[data.model].totalObjects += data.count;
+                    updateCompareStats();
+                } else {
+                    document.getElementById('camera-time').textContent = (data.inference_time * 1000).toFixed(0) + ' ms';
+                    document.getElementById('camera-count').textContent = data.count;
+                }
+                updateLiveDetections(latestDetections);
+            };
+
+            cameraWS.onerror = (e) => showCameraError('No se pudo conectar al servidor de detección (WebSocket).');
+            cameraWS.onclose = (e) => {
+                if (cameraActive) showCameraError(`Conexión cerrada inesperadamente (código ${e.code}).`);
+            };
+        })
+        .catch(err => {
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="bi bi-play-fill"></i> Iniciar Cámara';
+            showCameraError('No se pudo acceder a la cámara: ' + err.message);
+        });
+}
+
+function cameraLoop(videoEl, canvas, ctx) {
+    if (!cameraActive) return;
+
+    if (videoEl.readyState >= 2) {
+        ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+        drawCameraDetections(ctx, latestDetections, canvas.width / 640, canvas.height / 480);
+
+        camFrameCount++;
+        const elapsed = (Date.now() - camFpsTimer) / 1000;
+        if (elapsed >= 1) {
+            document.getElementById('camera-fps').textContent = (camFrameCount / elapsed).toFixed(1);
+            camFrameCount = 0;
+            camFpsTimer = Date.now();
+        }
+
+        if (!waitingWSResponse && cameraWS?.readyState === WebSocket.OPEN) {
+            captureCtx.drawImage(videoEl, 0, 0, 640, 480);
+            captureCanvas.toBlob(blob => {
+                if (blob && cameraWS?.readyState === WebSocket.OPEN) {
+                    waitingWSResponse = true;
+                    blob.arrayBuffer().then(buf => cameraWS.send(buf));
+                }
+            }, 'image/jpeg', 0.7);
+        }
+    }
+
+    cameraAnimId = requestAnimationFrame(() => cameraLoop(videoEl, canvas, ctx));
+}
+
+function drawCameraDetections(ctx, detections, scaleX, scaleY, offsetX = 0, offsetY = 0) {
+    const color = latestModel === 'rcnn' ? '#4d7cf4' : '#00ff41';
+    detections.forEach(det => {
+        const { x1, y1, x2, y2 } = det.bbox;
+        const sx = x1 * scaleX + offsetX, sy = y1 * scaleY + offsetY;
+        const sw = (x2 - x1) * scaleX, sh = (y2 - y1) * scaleY;
+        const label = `${det.class_name} ${(det.confidence * 100).toFixed(0)}%`;
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx, sy, sw, sh);
+
+        const textW = ctx.measureText(label).width + 8;
+        ctx.fillStyle = color;
+        ctx.fillRect(sx, sy - 20, textW, 20);
+        ctx.fillStyle = '#000';
+        ctx.font = 'bold 12px monospace';
+        ctx.fillText(label, sx + 4, sy - 5);
+    });
+}
+
+function updateCompareStats() {
+    const r = compareStats.rcnn;
+    const y = compareStats.yolo;
+
+    if (r.count > 0) {
+        document.getElementById('cmp-rcnn-time').textContent = (r.totalTime / r.count * 1000).toFixed(0) + ' ms';
+        document.getElementById('cmp-rcnn-count').textContent = (r.totalObjects / r.count).toFixed(1);
+    }
+    if (y.count > 0) {
+        document.getElementById('cmp-yolo-time').textContent = (y.totalTime / y.count * 1000).toFixed(0) + ' ms';
+        document.getElementById('cmp-yolo-count').textContent = (y.totalObjects / y.count).toFixed(1);
+    }
+
+    document.getElementById('cmp-active-model').textContent = `Ahora: ${latestModel.toUpperCase()}`;
+
+    if (r.count > 0 && y.count > 0) {
+        const rAvg = r.totalTime / r.count;
+        const yAvg = y.totalTime / y.count;
+        if (yAvg < rAvg) {
+            const pct = ((rAvg - yAvg) / rAvg * 100).toFixed(0);
+            document.getElementById('cmp-advantage').textContent = `YOLO es ${pct}% más rápido`;
+        } else {
+            const pct = ((yAvg - rAvg) / yAvg * 100).toFixed(0);
+            document.getElementById('cmp-advantage').textContent = `RCNN es ${pct}% más rápido`;
+        }
+    }
+}
+
+function updateLiveDetections(detections) {
+    const el = document.getElementById('camera-detections-live');
+    if (detections.length === 0) { el.innerHTML = ''; return; }
+    const counts = {};
+    detections.forEach(d => { counts[d.class_name] = (counts[d.class_name] || 0) + 1; });
+    el.innerHTML = Object.entries(counts)
+        .map(([name, n]) => `<span class="badge bg-success me-1 mb-1">${name}${n > 1 ? ' ×' + n : ''}</span>`)
+        .join('');
+}
+
+function stopCamera() {
+    cameraActive = false;
+    if (cameraAnimId) cancelAnimationFrame(cameraAnimId);
+    if (cameraWS) { try { cameraWS.close(); } catch (_) {} }
+    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    latestDetections = [];
+    latestModel = null;
+    cameraWS = null;
+    cameraStream = null;
+
+    const ctx = document.getElementById('camera-canvas').getContext('2d');
+    ctx.clearRect(0, 0, 640, 480);
+    document.getElementById('camera-placeholder').style.display = 'flex';
+    document.getElementById('camera-stats').style.display = 'none';
+    const startBtn = document.getElementById('camera-start-btn');
+    startBtn.disabled = false;
+    startBtn.innerHTML = '<i class="bi bi-play-fill"></i> Iniciar Cámara';
+    document.getElementById('camera-stop-btn').disabled = true;
+    document.getElementById('camera-model-select').disabled = false;
+}
+
+function showCameraError(msg) {
+    const el = document.getElementById('camera-error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    stopCamera();
 }
 
 // ==================== UTILITIES ====================

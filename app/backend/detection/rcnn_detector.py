@@ -1,6 +1,12 @@
 """
 RCNN (Faster R-CNN) object detection module
 """
+import ssl
+try:
+    import certifi
+    ssl._create_default_https_context = lambda: ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+    pass
 import torch
 import torchvision
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
@@ -87,6 +93,18 @@ class RCNNDetector:
         
         return annotated_image, detections, inference_time
     
+    def detect_frame(self, frame: np.ndarray) -> Tuple[List[Dict], float]:
+        """Run detection on a single numpy BGR frame (from webcam)."""
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image_pil = Image.fromarray(frame_rgb)
+        start_time = time.time()
+        image_tensor = F.to_tensor(image_pil).to(self.device)
+        with torch.no_grad():
+            predictions = self.model([image_tensor])
+        inference_time = time.time() - start_time
+        detections = self._extract_detections(predictions[0], frame.shape[:2])
+        return detections, inference_time
+
     def detect_video(self, video_path: str, callback=None) -> Tuple[str, List[Dict], float, float]:
         """
         Detect objects in video frames

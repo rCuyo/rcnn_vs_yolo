@@ -1,13 +1,16 @@
 """
 Main FastAPI application
 """
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import io
 import time
+import asyncio
+import numpy as np
+import cv2
 from pathlib import Path
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -86,14 +89,6 @@ async def root():
     if index_path.exists():
         return FileResponse(index_path, media_type="text/html")
     return {"message": "RCNN vs YOLO Detection API", "version": settings.APP_VERSION}
-
-@app.get("/{path_name:path}")
-async def catch_all(path_name: str):
-    """Catch-all route to serve index.html for SPA routing"""
-    index_path = templates_path / "index.html"
-    if index_path.exists() and not path_name.startswith("api/"):
-        return FileResponse(index_path, media_type="text/html")
-    raise HTTPException(status_code=404, detail="Not found")
 
 @app.get("/api/v1/health")
 async def health_check():
@@ -564,6 +559,87 @@ async def get_statistics(db: Session = Depends(get_db)):
         "yolo_count": yolo_count,
         "comparisons": db.query(ComparisonResult).count()
     }
+
+# ==================== CAMERA WEBSOCKET ====================
+
+@app.websocket("/api/v1/ws/camera/compare")
+async def camera_compare_websocket(websocket: WebSocket):
+    """Alternates between RCNN and YOLO every frame for live side-by-side comparison."""
+    await websocket.accept()
+
+    if not rcnn_detector or not yolo_detector:
+        await websocket.close(code=1003, reason="Both models required for comparison")
+        return
+
+    loop = asyncio.get_event_loop()
+    use_rcnn = True
+    try:
+        while True:
+            data = await websocket.receive_bytes()
+            nparr = np.frombuffer(data, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if frame is None:
+                continue
+
+            detector = rcnn_detector if use_rcnn else yolo_detector
+            model_name = "rcnn" if use_rcnn else "yolo"
+            use_rcnn = not use_rcnn
+
+            detections, inference_time = await loop.run_in_executor(
+                None, detector.detect_frame, frame
+            )
+
+            await websocket.send_json({
+                "model": model_name,
+                "detections": detections,
+                "inference_time": inference_time,
+                "count": len(detections)
+            })
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+
+@app.websocket("/api/v1/ws/camera/{model}")
+async def camera_websocket(websocket: WebSocket, model: str):
+    """Real-time object detection from webcam frames sent as JPEG bytes."""
+    await websocket.accept()
+
+    detector = rcnn_detector if model == "rcnn" else yolo_detector
+    if not detector:
+        await websocket.close(code=1003, reason=f"{model} model not available")
+        return
+
+    loop = asyncio.get_event_loop()
+    try:
+        while True:
+            data = await websocket.receive_bytes()
+            nparr = np.frombuffer(data, np.uint8)
+            frame = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+            if frame is None:
+                continue
+
+            detections, inference_time = await loop.run_in_executor(
+                None, detector.detect_frame, frame
+            )
+
+            await websocket.send_json({
+                "detections": detections,
+                "inference_time": inference_time,
+                "count": len(detections)
+            })
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+
+@app.get("/{path_name:path}")
+async def catch_all(path_name: str):
+    """Catch-all route to serve index.html for SPA routing"""
+    index_path = templates_path / "index.html"
+    if index_path.exists() and not path_name.startswith("api/"):
+        return FileResponse(index_path, media_type="text/html")
+    raise HTTPException(status_code=404, detail="Not found")
 
 if __name__ == "__main__":
     import uvicorn

@@ -43,6 +43,9 @@
                         </ul>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link" href="#camara">Cámara</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link" href="#comparacion">Comparación</a>
                     </li>
                     <li class="nav-item">
@@ -196,6 +199,87 @@
                     <div class="row mt-3">
                         <div class="col-12">
                             <img id="yolo-image-result" src="" alt="Result" class="img-fluid result-image">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Camera Section -->
+        <section id="camara" class="module-section py-5 border-bottom">
+            <div class="container">
+                <h2 class="mb-4">
+                    <i class="bi bi-camera-video"></i> Detección en Tiempo Real - Cámara
+                </h2>
+                <div class="row g-4">
+                    <!-- Controls -->
+                    <div class="col-lg-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h6 class="card-title">Configuración</h6>
+                                <div class="mb-3">
+                                    <label class="form-label small fw-bold">Modelo</label>
+                                    <select id="camera-model-select" class="form-select">
+                                        <option value="yolo">YOLO (Recomendado)</option>
+                                        <option value="rcnn">RCNN (Lento en CPU)</option>
+                                        <option value="compare">⚡ Comparar ambos</option>
+                                    </select>
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <button id="camera-start-btn" class="btn btn-success" onclick="startCamera()">
+                                        <i class="bi bi-play-fill"></i> Iniciar Cámara
+                                    </button>
+                                    <button id="camera-stop-btn" class="btn btn-danger" onclick="stopCamera()" disabled>
+                                        <i class="bi bi-stop-fill"></i> Detener
+                                    </button>
+                                </div>
+                                <hr>
+                                <div id="camera-stats" style="display:none;">
+                                    <!-- Modo un solo modelo -->
+                                    <div id="single-model-stats">
+                                        <h6 class="text-muted small">Estadísticas en vivo</h6>
+                                        <ul class="list-unstyled small">
+                                            <li>FPS: <strong id="camera-fps">0</strong></li>
+                                            <li>Tiempo: <strong id="camera-time">0 ms</strong></li>
+                                            <li>Objetos: <strong id="camera-count">0</strong></li>
+                                        </ul>
+                                    </div>
+                                    <!-- Modo comparación -->
+                                    <div id="compare-model-stats" style="display:none;">
+                                        <h6 class="text-muted small">Comparación en vivo</h6>
+                                        <div class="row g-0 text-center small mb-1">
+                                            <div class="col-6 border-end pe-1">
+                                                <div class="fw-bold" style="color:#4d7cf4;">RCNN</div>
+                                                <div>Inf: <strong id="cmp-rcnn-time">—</strong></div>
+                                                <div>Obj: <strong id="cmp-rcnn-count">—</strong></div>
+                                            </div>
+                                            <div class="col-6 ps-1">
+                                                <div class="fw-bold text-success">YOLO</div>
+                                                <div>Inf: <strong id="cmp-yolo-time">—</strong></div>
+                                                <div>Obj: <strong id="cmp-yolo-count">—</strong></div>
+                                            </div>
+                                        </div>
+                                        <div class="small text-center fst-italic mt-1" id="cmp-advantage"></div>
+                                        <div class="small text-muted text-center" id="cmp-active-model"></div>
+                                    </div>
+                                    <hr class="my-2">
+                                    <div id="camera-detections-live"></div>
+                                </div>
+                                <div id="camera-error" class="alert alert-danger mt-3 small" style="display:none;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Canvas -->
+                    <div class="col-lg-9">
+                        <div class="card">
+                            <div class="card-body p-2 text-center camera-canvas-wrapper">
+                                <video id="camera-video" autoplay playsinline muted style="display:none;"></video>
+                                <canvas id="camera-canvas" width="640" height="480" class="camera-canvas"></canvas>
+                                <div id="camera-placeholder" class="camera-placeholder">
+                                    <i class="bi bi-camera-video-off"></i>
+                                    <p class="mt-2 text-muted">Presiona "Iniciar Cámara" para comenzar</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
