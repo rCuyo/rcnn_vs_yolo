@@ -14,7 +14,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="/">
-                <i class="bi bi-robot"></i> RCNN vs YOLO
+                <i class="bi bi-bounding-box"></i> Detección de Objetos · RCNN vs YOLO
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -29,24 +29,24 @@
                             Imágenes
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navImages">
-                            <li><a class="dropdown-item" href="#rcnn-image">RCNN</a></li>
-                            <li><a class="dropdown-item" href="#yolo-image">YOLO</a></li>
+                            <li><a class="dropdown-item" href="#rcnn-image">1. RCNN</a></li>
+                            <li><a class="dropdown-item" href="#yolo-image">2. YOLO</a></li>
                         </ul>
                     </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navVideos" role="button" data-bs-toggle="dropdown">
-                            Videos
+                            Video
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="navVideos">
-                            <li><a class="dropdown-item" href="#rcnn-video">RCNN</a></li>
-                            <li><a class="dropdown-item" href="#yolo-video">YOLO</a></li>
+                            <li><a class="dropdown-item" href="#rcnn-video">3. RCNN</a></li>
+                            <li><a class="dropdown-item" href="#yolo-video">4. YOLO</a></li>
                         </ul>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#camara">Cámara</a>
+                        <a class="nav-link" href="#camara">Tiempo Real</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#comparacion">Comparación</a>
+                        <a class="nav-link" href="#analisis">5. Análisis</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="#historial">Historial</a>
@@ -63,17 +63,18 @@
             <div class="container">
                 <div class="row align-items-center">
                     <div class="col-lg-8">
-                        <h1 class="display-4 fw-bold mb-3">Detección de Objetos: RCNN vs YOLO</h1>
+                        <h1 class="display-5 fw-bold mb-3">Plataforma de Detección de Objetos</h1>
                         <p class="lead mb-4">
-                            Compara el rendimiento de dos de los modelos más avanzados de detección de objetos.
-                            Analiza velocidad, precisión y consume de recursos en tiempo real.
+                            Análisis comparativo del desempeño de dos arquitecturas de detección de objetos,
+                            Faster R-CNN y YOLOv8, evaluadas sobre imágenes y video en función de su
+                            tiempo de inferencia, número de detecciones y consumo de recursos.
                         </p>
                         <div class="btn-group" role="group">
                             <a href="#rcnn-image" class="btn btn-primary btn-lg">
-                                <i class="bi bi-lightning-fill"></i> Iniciar RCNN
+                                <i class="bi bi-box-arrow-in-right"></i> Comenzar análisis
                             </a>
-                            <a href="#yolo-image" class="btn btn-warning btn-lg">
-                                <i class="bi bi-fire"></i> Iniciar YOLO
+                            <a href="#analisis" class="btn btn-outline-light btn-lg">
+                                <i class="bi bi-graph-up"></i> Ver hallazgos
                             </a>
                         </div>
                     </div>
@@ -97,8 +98,10 @@
         <section id="rcnn-image" class="module-section py-5 border-bottom">
             <div class="container">
                 <h2 class="mb-4">
+                    <span class="module-badge">Módulo 1</span>
                     <i class="bi bi-arrow-repeat"></i> Detección RCNN - Imágenes
                 </h2>
+                <p class="text-muted mb-4">Detección de objetos con Faster R-CNN (ResNet-50 FPN) sobre imágenes estáticas.</p>
                 <div class="row">
                     <div class="col-lg-6">
                         <div class="card upload-card">
@@ -153,8 +156,10 @@
         <section id="yolo-image" class="module-section py-5 border-bottom">
             <div class="container">
                 <h2 class="mb-4">
+                    <span class="module-badge">Módulo 2</span>
                     <i class="bi bi-lightning"></i> Detección YOLO - Imágenes
                 </h2>
+                <p class="text-muted mb-4">Detección de objetos con YOLOv8 sobre imágenes estáticas.</p>
                 <div class="row">
                     <div class="col-lg-6">
                         <div class="card upload-card">
@@ -205,12 +210,116 @@
             </div>
         </section>
 
-        <!-- Camera Section -->
+        <!-- RCNN Video Section -->
+        <section id="rcnn-video" class="module-section py-5 border-bottom">
+            <div class="container">
+                <h2 class="mb-4">
+                    <span class="module-badge">Módulo 3</span>
+                    <i class="bi bi-film"></i> Detección RCNN - Video
+                </h2>
+                <p class="text-muted mb-4">
+                    Detección cuadro por cuadro con Faster R-CNN sobre un archivo de video.
+                    <span class="text-danger fw-bold">⚠ En CPU es lento</span>: usa clips cortos (5-10 s) para evitar esperas largas.
+                </p>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card upload-card">
+                            <div class="card-body">
+                                <div class="upload-area" id="rcnn-video-upload">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                    <h5>Cargar Video</h5>
+                                    <p class="text-muted">Arrastra un video aquí o haz clic para seleccionar (mp4, avi, mov)</p>
+                                    <input type="file" id="rcnn-video-input" accept="video/*" style="display: none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div id="rcnn-video-loading" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Procesando...</span>
+                            </div>
+                            <p class="mt-2">Procesando video con RCNN (puede tardar varios minutos)...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="rcnn-video-results" style="display: none;" class="mt-4">
+                    <h4>Resultados RCNN (Video)</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="result-card">
+                                <h6>Métricas</h6>
+                                <ul id="rcnn-video-metrics" class="metrics-list"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <video id="rcnn-video-result" src="" controls class="img-fluid result-image"></video>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- YOLO Video Section -->
+        <section id="yolo-video" class="module-section py-5 border-bottom">
+            <div class="container">
+                <h2 class="mb-4">
+                    <span class="module-badge">Módulo 4</span>
+                    <i class="bi bi-film"></i> Detección YOLO - Video
+                </h2>
+                <p class="text-muted mb-4">
+                    Detección cuadro por cuadro con YOLOv8 sobre un archivo de video. Mucho más rápido que RCNN.
+                </p>
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card upload-card">
+                            <div class="card-body">
+                                <div class="upload-area" id="yolo-video-upload">
+                                    <i class="bi bi-cloud-arrow-up"></i>
+                                    <h5>Cargar Video</h5>
+                                    <p class="text-muted">Arrastra un video aquí o haz clic para seleccionar (mp4, avi, mov)</p>
+                                    <input type="file" id="yolo-video-input" accept="video/*" style="display: none;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div id="yolo-video-loading" style="display: none;">
+                            <div class="spinner-border text-warning" role="status">
+                                <span class="visually-hidden">Procesando...</span>
+                            </div>
+                            <p class="mt-2">Procesando video con YOLO...</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="yolo-video-results" style="display: none;" class="mt-4">
+                    <h4>Resultados YOLO (Video)</h4>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="result-card">
+                                <h6>Métricas</h6>
+                                <ul id="yolo-video-metrics" class="metrics-list"></ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <video id="yolo-video-result" src="" controls class="img-fluid result-image"></video>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Camera Section (Tiempo Real) -->
         <section id="camara" class="module-section py-5 border-bottom">
             <div class="container">
                 <h2 class="mb-4">
                     <i class="bi bi-camera-video"></i> Detección en Tiempo Real - Cámara
                 </h2>
+                <p class="text-muted mb-4">Simulación de detección en tiempo real desde la webcam (complementa los Módulos 3 y 4).</p>
                 <div class="row g-4">
                     <!-- Controls -->
                     <div class="col-lg-3">
@@ -220,9 +329,9 @@
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold">Modelo</label>
                                     <select id="camera-model-select" class="form-select">
-                                        <option value="yolo">YOLO (Recomendado)</option>
-                                        <option value="rcnn">RCNN (Lento en CPU)</option>
-                                        <option value="compare">⚡ Comparar ambos</option>
+                                        <option value="yolo">YOLO — recomendado</option>
+                                        <option value="rcnn">RCNN — lento en CPU</option>
+                                        <option value="compare">Comparar ambos modelos</option>
                                     </select>
                                 </div>
                                 <div class="d-grid gap-2">
@@ -278,6 +387,60 @@
                                 <div id="camera-placeholder" class="camera-placeholder">
                                     <i class="bi bi-camera-video-off"></i>
                                     <p class="mt-2 text-muted">Presiona "Iniciar Cámara" para comenzar</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Panel de comparación en vivo (solo modo "Comparar ambos modelos") -->
+                <div id="camera-compare-panel" class="row mt-4" style="display:none;">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0"><i class="bi bi-bar-chart-line"></i> Comparación de modelos en vivo</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-lg-6">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-3">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Métrica</th>
+                                                        <th class="text-center" style="color:#3d6e9e;">RCNN</th>
+                                                        <th class="text-center text-success">YOLO</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td>Tiempo inferencia (prom.)</td>
+                                                        <td class="text-center" id="cmp2-rcnn-time">—</td>
+                                                        <td class="text-center" id="cmp2-yolo-time">—</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>FPS estimado</td>
+                                                        <td class="text-center" id="cmp2-rcnn-fps">—</td>
+                                                        <td class="text-center" id="cmp2-yolo-fps">—</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Objetos por frame (prom.)</td>
+                                                        <td class="text-center" id="cmp2-rcnn-count">—</td>
+                                                        <td class="text-center" id="cmp2-yolo-count">—</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td>Frames procesados</td>
+                                                        <td class="text-center" id="cmp2-rcnn-frames">—</td>
+                                                        <td class="text-center" id="cmp2-yolo-frames">—</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div class="alert alert-info py-2 small mb-0" id="cmp2-verdict">Recopilando datos...</div>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        <canvas id="cameraCompareChart"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -391,20 +554,52 @@
             </div>
         </section>
 
-        <!-- Analysis Section -->
-        <section class="module-section py-5">
+        <!-- Analysis Section (Módulo 5) -->
+        <section id="analisis" class="module-section py-5 bg-light">
             <div class="container">
                 <h2 class="mb-4">
-                    <i class="bi bi-graph-up"></i> Análisis y Conclusiones
+                    <span class="module-badge">Módulo 5</span>
+                    <i class="bi bi-graph-up"></i> Análisis de Hallazgos: Imágenes vs Video
                 </h2>
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="card">
+                <p class="text-muted mb-4">
+                    Comportamiento de RCNN y YOLO en función de las métricas respectivas
+                    (tiempo de inferencia, FPS, número de detecciones y consumo de recursos).
+                </p>
+
+                <!-- Hallazgos generales (estáticos, basados en la arquitectura) -->
+                <div class="row mb-4">
+                    <div class="col-lg-6">
+                        <div class="card h-100">
+                            <div class="card-header"><h6 class="mb-0"><i class="bi bi-image"></i> En Imágenes (Módulos 1-2)</h6></div>
                             <div class="card-body">
-                                <div id="analysis-content">
-                                    <p class="text-muted">Los análisis se mostrarán después de completar comparaciones...</p>
-                                </div>
+                                <ul class="small mb-0">
+                                    <li><strong>Tiempo de inferencia:</strong> YOLO procesa en una sola pasada (one-stage), típicamente 5-20× más rápido que Faster R-CNN, que usa dos etapas (propuestas + clasificación).</li>
+                                    <li><strong>Detecciones:</strong> RCNN suele detectar más objetos pequeños o solapados con mayor precisión de localización.</li>
+                                    <li><strong>Recursos:</strong> RCNN consume más memoria y CPU por su backbone ResNet-50 + FPN.</li>
+                                </ul>
                             </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-6">
+                        <div class="card h-100">
+                            <div class="card-header"><h6 class="mb-0"><i class="bi bi-film"></i> En Video / Tiempo Real (Módulos 3-4)</h6></div>
+                            <div class="card-body">
+                                <ul class="small mb-0">
+                                    <li><strong>FPS:</strong> La diferencia se amplifica: YOLO mantiene FPS aptos para tiempo real, mientras RCNN cae a pocos FPS (a veces &lt;1 en CPU).</li>
+                                    <li><strong>Coste acumulado:</strong> El tiempo por cuadro se multiplica por el número de frames; un video largo con RCNN en CPU puede tardar minutos.</li>
+                                    <li><strong>Aplicabilidad:</strong> YOLO es el indicado para video/tiempo real; RCNN se reserva para análisis offline donde prima la precisión.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resultados dinámicos de la última comparación -->
+                <div class="card">
+                    <div class="card-header"><h6 class="mb-0">Resultados de tu última comparación</h6></div>
+                    <div class="card-body">
+                        <div id="analysis-content">
+                            <p class="text-muted mb-0">Los análisis con tus datos se mostrarán después de completar comparaciones (carga una imagen en RCNN y otra en YOLO)...</p>
                         </div>
                     </div>
                 </div>
@@ -417,34 +612,35 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-4">
-                    <h6>Sobre</h6>
+                    <h6>Descripción</h6>
                     <p class="small">
-                        Plataforma de comparación de modelos de detección de objetos.
-                        RCNN vs YOLO
+                        Plataforma para el análisis comparativo de modelos de detección de objetos
+                        (Faster R-CNN y YOLOv8) sobre imágenes y video, con evaluación de métricas
+                        de desempeño.
                     </p>
                 </div>
                 <div class="col-md-4">
-                    <h6>Características</h6>
+                    <h6>Módulos</h6>
                     <ul class="small">
-                        <li>Detección en imágenes</li>
-                        <li>Detección en videos</li>
-                        <li>Análisis comparativo</li>
-                        <li>Métricas en tiempo real</li>
+                        <li>1-2 · Detección en imágenes (RCNN / YOLO)</li>
+                        <li>3-4 · Detección en video (RCNN / YOLO)</li>
+                        <li>Detección en tiempo real (cámara)</li>
+                        <li>5 · Análisis de hallazgos por métricas</li>
                     </ul>
                 </div>
                 <div class="col-md-4">
                     <h6>Tecnologías</h6>
                     <ul class="small">
-                        <li>FastAPI</li>
-                        <li>PyTorch</li>
-                        <li>Ultralytics YOLO</li>
+                        <li>FastAPI · Uvicorn</li>
+                        <li>PyTorch · Torchvision</li>
+                        <li>Ultralytics YOLOv8</li>
                         <li>Bootstrap 5</li>
                     </ul>
                 </div>
             </div>
             <hr>
             <div class="text-center small">
-                <p>&copy; 2024 RCNN vs YOLO Detection Platform. Todos los derechos reservados.</p>
+                <p class="mb-0">&copy; 2026 · Plataforma de Detección de Objetos — RCNN vs YOLO.</p>
             </div>
         </div>
     </footer>

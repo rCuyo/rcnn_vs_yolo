@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // ==================== UPLOAD AREA INITIALIZATION ====================
 
 function initializeUploadAreas() {
-    const uploadAreas = ['rcnn-image', 'yolo-image'];
+    const uploadAreas = ['rcnn-image', 'yolo-image', 'rcnn-video', 'yolo-video'];
     
     uploadAreas.forEach(prefix => {
         const uploadArea = document.getElementById(`${prefix}-upload`);
@@ -65,24 +65,35 @@ function initializeUploadAreas() {
 function handleFileSelect(event, prefix) {
     const files = event.target.files;
     if (files.length === 0) return;
-    
+
     const file = files[0];
-    
+    const isVideo = prefix.endsWith('-video');
+
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-        showError(`${prefix}: Please select an image file`);
+    if (isVideo) {
+        if (!file.type.startsWith('video/')) {
+            showError(`${prefix}: Por favor selecciona un archivo de video`);
+            return;
+        }
+        // No image preview for videos; upload directly
+        uploadFile(file, prefix);
         return;
     }
-    
+
+    if (!file.type.startsWith('image/')) {
+        showError(`${prefix}: Por favor selecciona una imagen`);
+        return;
+    }
+
     // Show preview
     const reader = new FileReader();
     reader.onload = (e) => {
         const preview = document.getElementById(`${prefix}-preview`);
         const previewImg = document.getElementById(`${prefix}-preview-img`);
-        
+
         previewImg.src = e.target.result;
         preview.style.display = 'block';
-        
+
         // Upload file
         uploadFile(file, prefix);
     };
@@ -109,23 +120,27 @@ function uploadFile(file, prefix) {
     .then(response => response.json())
     .then(data => {
         loading.style.display = 'none';
-        
+
         if (data.result_id) {
-            // Store result ID for comparison
-            if (model === 'rcnn' && type === 'image') {
-                rcnnImageResultId = data.result_id;
-            } else if (model === 'yolo' && type === 'image') {
-                yoloImageResultId = data.result_id;
-            }
-            
-            displayResults(data, prefix);
-            
-            // Try to auto-compare
-            if (rcnnImageResultId && yoloImageResultId && type === 'image') {
-                compareResults(rcnnImageResultId, yoloImageResultId);
+            if (type === 'video') {
+                displayVideoResults(data, prefix);
+            } else {
+                // Store result ID for comparison
+                if (model === 'rcnn') {
+                    rcnnImageResultId = data.result_id;
+                } else if (model === 'yolo') {
+                    yoloImageResultId = data.result_id;
+                }
+
+                displayResults(data, prefix);
+
+                // Try to auto-compare
+                if (rcnnImageResultId && yoloImageResultId) {
+                    compareResults(rcnnImageResultId, yoloImageResultId);
+                }
             }
         }
-        
+
         loadStatistics();
     })
     .catch(error => {
@@ -200,6 +215,45 @@ function displayResults(data, prefix) {
     }
     
     detections.innerHTML = detectionsHtml;
+    results.style.display = 'block';
+}
+
+// ==================== VIDEO RESULTS DISPLAY ====================
+
+function displayVideoResults(data, prefix) {
+    const results = document.getElementById(`${prefix}-results`);
+    const resultVideo = document.getElementById(`${prefix}-result`);
+    const metrics = document.getElementById(`${prefix}-metrics`);
+
+    // Display result video
+    if (data.output_video) {
+        resultVideo.src = data.output_video;
+    }
+
+    // Display metrics
+    metrics.innerHTML = `
+        <li>
+            <span class="metric-label">Frames procesados:</span>
+            <span class="metric-value">${data.frames_processed}</span>
+        </li>
+        <li>
+            <span class="metric-label">Detecciones totales:</span>
+            <span class="metric-value">${data.total_detections}</span>
+        </li>
+        <li>
+            <span class="metric-label">Promedio por frame:</span>
+            <span class="metric-value">${data.avg_detections_per_frame.toFixed(2)}</span>
+        </li>
+        <li>
+            <span class="metric-label">FPS de procesamiento:</span>
+            <span class="metric-value">${data.fps.toFixed(2)}</span>
+        </li>
+        <li>
+            <span class="metric-label">Tiempo total de inferencia:</span>
+            <span class="metric-value">${data.total_inference_time.toFixed(2)} s</span>
+        </li>
+    `;
+
     results.style.display = 'block';
 }
 
@@ -442,11 +496,36 @@ let latestModel = null;
 let camFrameCount = 0;
 let camFpsTimer = Date.now();
 let compareStats = { rcnn: { totalTime: 0, count: 0, totalObjects: 0 }, yolo: { totalTime: 0, count: 0, totalObjects: 0 } };
+let canvasesSized = false;
+let lastSendTime = 0;
+let cameraCompareChart = null;
+// Si no llega respuesta en este tiempo, se libera el envío (evita congelarse).
+const WS_RESPONSE_TIMEOUT_MS = 8000;
 
+// El lienzo de captura (que se envía al servidor) se redimensiona según
+// la proporción real de la cámara; se inicializa al arrancar.
 const captureCanvas = document.createElement('canvas');
 captureCanvas.width = 640;
 captureCanvas.height = 480;
 const captureCtx = captureCanvas.getContext('2d');
+
+// Ajusta los lienzos a la proporción nativa del video para evitar deformación.
+function sizeCanvasesToVideo(videoEl, displayCanvas) {
+    const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+    if (!vw || !vh) return false;
+
+    // Captura limitada a 640 px de ancho (rendimiento), manteniendo proporción.
+    const maxCaptureWidth = 640;
+    const capW = Math.min(maxCaptureWidth, vw);
+    const capH = Math.round(capW * vh / vw);
+    captureCanvas.width = capW;
+    captureCanvas.height = capH;
+
+    // El lienzo visible usa la resolución nativa; el CSS lo escala de forma responsive.
+    displayCanvas.width = vw;
+    displayCanvas.height = vh;
+    return true;
+}
 
 function startCamera() {
     const model = document.getElementById('camera-model-select').value;
@@ -482,6 +561,8 @@ function startCamera() {
             cameraWS.onopen = () => {
                 cameraActive = true;
                 waitingWSResponse = false;
+                canvasesSized = false;
+                lastSendTime = 0;
                 latestDetections = [];
                 latestModel = null;
                 compareStats = { rcnn: { totalTime: 0, count: 0, totalObjects: 0 }, yolo: { totalTime: 0, count: 0, totalObjects: 0 } };
@@ -490,9 +571,12 @@ function startCamera() {
                 if (model === 'compare') {
                     document.getElementById('single-model-stats').style.display = 'none';
                     document.getElementById('compare-model-stats').style.display = 'block';
+                    document.getElementById('camera-compare-panel').style.display = 'flex';
+                    initCameraCompareChart();
                 } else {
                     document.getElementById('single-model-stats').style.display = 'block';
                     document.getElementById('compare-model-stats').style.display = 'none';
+                    document.getElementById('camera-compare-panel').style.display = 'none';
                 }
                 startBtn.innerHTML = '<i class="bi bi-play-fill"></i> Iniciar Cámara';
                 document.getElementById('camera-stop-btn').disabled = false;
@@ -503,20 +587,25 @@ function startCamera() {
             };
 
             cameraWS.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                latestDetections = data.detections || [];
+                // Libera el envío de inmediato para no quedar bloqueado si algo falla después.
                 waitingWSResponse = false;
-                if (data.model) {
-                    latestModel = data.model;
-                    compareStats[data.model].totalTime += data.inference_time;
-                    compareStats[data.model].count++;
-                    compareStats[data.model].totalObjects += data.count;
-                    updateCompareStats();
-                } else {
-                    document.getElementById('camera-time').textContent = (data.inference_time * 1000).toFixed(0) + ' ms';
-                    document.getElementById('camera-count').textContent = data.count;
+                try {
+                    const data = JSON.parse(event.data);
+                    latestDetections = data.detections || [];
+                    if (data.model) {
+                        latestModel = data.model;
+                        compareStats[data.model].totalTime += data.inference_time;
+                        compareStats[data.model].count++;
+                        compareStats[data.model].totalObjects += data.count;
+                        updateCompareStats();
+                    } else {
+                        document.getElementById('camera-time').textContent = (data.inference_time * 1000).toFixed(0) + ' ms';
+                        document.getElementById('camera-count').textContent = data.count;
+                    }
+                    updateLiveDetections(latestDetections);
+                } catch (err) {
+                    console.error('Error procesando respuesta WS:', err);
                 }
-                updateLiveDetections(latestDetections);
             };
 
             cameraWS.onerror = (e) => showCameraError('No se pudo conectar al servidor de detección (WebSocket).');
@@ -535,8 +624,17 @@ function cameraLoop(videoEl, canvas, ctx) {
     if (!cameraActive) return;
 
     if (videoEl.readyState >= 2) {
+        // Ajusta los lienzos a la proporción real de la cámara (una sola vez).
+        if (!canvasesSized) {
+            canvasesSized = sizeCanvasesToVideo(videoEl, canvas);
+        }
+
         ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-        drawCameraDetections(ctx, latestDetections, canvas.width / 640, canvas.height / 480);
+        drawCameraDetections(
+            ctx, latestDetections,
+            canvas.width / captureCanvas.width,
+            canvas.height / captureCanvas.height
+        );
 
         camFrameCount++;
         const elapsed = (Date.now() - camFpsTimer) / 1000;
@@ -546,14 +644,23 @@ function cameraLoop(videoEl, canvas, ctx) {
             camFpsTimer = Date.now();
         }
 
-        if (!waitingWSResponse && cameraWS?.readyState === WebSocket.OPEN) {
-            captureCtx.drawImage(videoEl, 0, 0, 640, 480);
+        // Watchdog: si la respuesta tarda demasiado, libera el envío para no congelarse.
+        if (waitingWSResponse && (Date.now() - lastSendTime) > WS_RESPONSE_TIMEOUT_MS) {
+            waitingWSResponse = false;
+        }
+
+        if (canvasesSized && !waitingWSResponse && cameraWS?.readyState === WebSocket.OPEN) {
+            // Se marca como ocupado ANTES del toBlob asíncrono para enviar un solo cuadro a la vez.
+            waitingWSResponse = true;
+            lastSendTime = Date.now();
+            captureCtx.drawImage(videoEl, 0, 0, captureCanvas.width, captureCanvas.height);
             captureCanvas.toBlob(blob => {
                 if (blob && cameraWS?.readyState === WebSocket.OPEN) {
-                    waitingWSResponse = true;
                     blob.arrayBuffer().then(buf => cameraWS.send(buf));
+                } else {
+                    waitingWSResponse = false; // no se pudo enviar; reintentar
                 }
-            }, 'image/jpeg', 0.7);
+            }, 'image/jpeg', 0.8);
         }
     }
 
@@ -607,6 +714,64 @@ function updateCompareStats() {
             document.getElementById('cmp-advantage').textContent = `RCNN es ${pct}% más rápido`;
         }
     }
+
+    // Panel de comparación inferior (tabla + gráfico)
+    updateCameraComparePanel(r, y);
+}
+
+function updateCameraComparePanel(r, y) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    const rAvgMs = r.count > 0 ? (r.totalTime / r.count) * 1000 : 0;
+    const yAvgMs = y.count > 0 ? (y.totalTime / y.count) * 1000 : 0;
+
+    set('cmp2-rcnn-time', r.count > 0 ? rAvgMs.toFixed(0) + ' ms' : '—');
+    set('cmp2-yolo-time', y.count > 0 ? yAvgMs.toFixed(0) + ' ms' : '—');
+    set('cmp2-rcnn-fps', rAvgMs > 0 ? (1000 / rAvgMs).toFixed(1) : '—');
+    set('cmp2-yolo-fps', yAvgMs > 0 ? (1000 / yAvgMs).toFixed(1) : '—');
+    set('cmp2-rcnn-count', r.count > 0 ? (r.totalObjects / r.count).toFixed(1) : '—');
+    set('cmp2-yolo-count', y.count > 0 ? (y.totalObjects / y.count).toFixed(1) : '—');
+    set('cmp2-rcnn-frames', r.count);
+    set('cmp2-yolo-frames', y.count);
+
+    const verdict = document.getElementById('cmp2-verdict');
+    if (verdict && r.count > 0 && y.count > 0) {
+        const faster = yAvgMs < rAvgMs ? 'YOLO' : 'RCNN';
+        const slow = yAvgMs < rAvgMs ? rAvgMs : yAvgMs;
+        const fast = yAvgMs < rAvgMs ? yAvgMs : rAvgMs;
+        const factor = (slow / fast).toFixed(1);
+        verdict.innerHTML = `<strong>${faster}</strong> es ~<strong>${factor}×</strong> más rápido en tiempo real sobre tu equipo.`;
+    }
+
+    // Actualiza el gráfico de barras (tiempo de inferencia)
+    if (cameraCompareChart) {
+        cameraCompareChart.data.datasets[0].data = [rAvgMs, yAvgMs];
+        cameraCompareChart.update('none');
+    }
+}
+
+function initCameraCompareChart() {
+    const ctx = document.getElementById('cameraCompareChart')?.getContext('2d');
+    if (!ctx) return;
+    if (cameraCompareChart) { cameraCompareChart.destroy(); cameraCompareChart = null; }
+    cameraCompareChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['RCNN', 'YOLO'],
+            datasets: [{
+                label: 'Tiempo de inferencia (ms)',
+                data: [0, 0],
+                backgroundColor: ['#3d6e9e', '#2f7d4f'],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            animation: false,
+            plugins: { legend: { display: false }, title: { display: true, text: 'Tiempo de inferencia promedio (ms)' } },
+            scales: { y: { beginAtZero: true } }
+        }
+    });
 }
 
 function updateLiveDetections(detections) {
@@ -621,6 +786,7 @@ function updateLiveDetections(detections) {
 
 function stopCamera() {
     cameraActive = false;
+    canvasesSized = false;
     if (cameraAnimId) cancelAnimationFrame(cameraAnimId);
     if (cameraWS) { try { cameraWS.close(); } catch (_) {} }
     if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
@@ -629,10 +795,12 @@ function stopCamera() {
     cameraWS = null;
     cameraStream = null;
 
-    const ctx = document.getElementById('camera-canvas').getContext('2d');
-    ctx.clearRect(0, 0, 640, 480);
+    const displayCanvas = document.getElementById('camera-canvas');
+    displayCanvas.getContext('2d').clearRect(0, 0, displayCanvas.width, displayCanvas.height);
     document.getElementById('camera-placeholder').style.display = 'flex';
     document.getElementById('camera-stats').style.display = 'none';
+    document.getElementById('camera-compare-panel').style.display = 'none';
+    if (cameraCompareChart) { cameraCompareChart.destroy(); cameraCompareChart = null; }
     const startBtn = document.getElementById('camera-start-btn');
     startBtn.disabled = false;
     startBtn.innerHTML = '<i class="bi bi-play-fill"></i> Iniciar Cámara';

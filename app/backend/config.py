@@ -28,11 +28,11 @@ class Settings(BaseSettings):
     
     # RCNN model
     RCNN_MODEL_NAME: str = "fasterrcnn_resnet50_fpn"
-    RCNN_CONFIDENCE_THRESHOLD: float = 0.5
-    
+    RCNN_CONFIDENCE_THRESHOLD: float = 0.6  # umbral mayor para reducir falsos positivos
+
     # YOLO model
-    YOLO_MODEL_PATH: str = "yolov8n.pt"  # nano model for speed
-    YOLO_CONFIDENCE_THRESHOLD: float = 0.5
+    YOLO_MODEL_PATH: str = "yolov8s.pt"  # variante "small": mejor precisión que nano
+    YOLO_CONFIDENCE_THRESHOLD: float = 0.6  # umbral mayor para reducir falsos positivos
     
     # Detection settings
     MAX_IMAGE_SIZE: int = 1920
